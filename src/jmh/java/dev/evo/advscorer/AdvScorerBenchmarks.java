@@ -1,4 +1,4 @@
-package dev.evo.elasticsearch;
+package dev.evo.advscorer;
 
 import java.nio.ByteOrder;
 import java.nio.ByteBuffer;
@@ -18,7 +18,7 @@ import org.openjdk.jmh.annotations.State;
 public class AdvScorerBenchmarks {
     @State(Scope.Benchmark)
     public static class Data {
-        private static final int BATCH_SIZE = 1024;
+        private static final int BATCH_SIZE = 1024 * 64;
         private final float[] scores;
         private final float[] advWeights;
         private final boolean[] prosaleOnlyFlags;
@@ -29,26 +29,21 @@ public class AdvScorerBenchmarks {
         private final float minAdvBoost;
         private final float maxAdvBoost;
 
-        private UnsafeBuffer scoresBuf = new UnsafeBuffer(
-                ByteBuffer.allocateDirect(BATCH_SIZE * 4)
-                        .order(ByteOrder.LITTLE_ENDIAN)
-        );
-        private UnsafeBuffer advWeightsBuf = new UnsafeBuffer(
-                ByteBuffer.allocateDirect(BATCH_SIZE * 4)
-                        .order(ByteOrder.LITTLE_ENDIAN)
-        );
-        private ByteBuffer prosaleOnlyFlagsBuf = ByteBuffer.allocateDirect(BATCH_SIZE / 8)
-                .order(ByteOrder.nativeOrder());
+        private ByteBuffer scoresBuf = AlignedBuffer.create(BATCH_SIZE * 4, 32);
+        private ByteBuffer advWeightsBuf = AlignedBuffer.create(BATCH_SIZE * 4, 32);
+        private ByteBuffer prosaleOnlyFlagsBuf = AlignedBuffer.create(BATCH_SIZE * 4, 32);
 
         public Data() {
             scores = new float[BATCH_SIZE];
             for (int i = 0; i < BATCH_SIZE; i++) {
                 scores[i] = (float) i;
+                scoresBuf.putFloat(i * 4, scores[i]);
             }
 
             advWeights = new float[BATCH_SIZE];
             for (int i = 0; i < BATCH_SIZE; i++) {
                 advWeights[i] = 1.0f / (float) i;
+                advWeightsBuf.putFloat(i * 4, advWeights[i]);
             }
 
             prosaleOnlyFlags = new boolean[BATCH_SIZE];
@@ -67,23 +62,23 @@ public class AdvScorerBenchmarks {
 
     @Benchmark
     public void calcScoresJava(Data data) {
-        for (int i = 0; i < Data.BATCH_SIZE; i++) {
-            float score;
-            if (!data.prosaleOnlyFlags[i]) {
-                score = data.scores[i];
-            } else if (data.scores[i] <= 0f && data.scores[i] < data.minScore) {
-                score = -1f;
-            } else {
-                score = data.maxScore * Math.min(
-                        Math.max(
-                                data.advWeights[i] * data.slope + data.intercept,
-                                data.minAdvBoost
-                        ),
-                        data.maxAdvBoost
-                );
-            }
-            data.scores[i] = score;
-        }
+        AdvScorer.calcScores(
+            data.scores, data.advWeights, data.prosaleOnlyFlags,
+            data.minScore, data.maxScore,
+            data.minAdvBoost, data.maxAdvBoost,
+            data.slope, data.intercept
+        );
+    }
+
+    @Benchmark
+    public void calcScoresJni(Data data) {
+        AdvScorerJni.calcScores(
+            Data.BATCH_SIZE,
+            data.scoresBuf, data.advWeightsBuf, data.prosaleOnlyFlagsBuf,
+            data.minScore, data.maxScore,
+            data.minAdvBoost, data.maxAdvBoost,
+            data.slope, data.intercept
+        );
     }
 
 //    @Benchmark

@@ -1,4 +1,4 @@
-package dev.evo.elasticsearch;
+package dev.evo.advscorer;
 
 import java.lang.reflect.Field;
 import java.nio.Buffer;
