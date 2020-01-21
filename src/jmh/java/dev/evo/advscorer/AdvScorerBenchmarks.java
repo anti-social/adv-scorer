@@ -70,16 +70,16 @@ public class AdvScorerBenchmarks {
         );
     }
 
-    @Benchmark
-    public void calcScoresJni(Data data) {
-        AdvScorerJni.calcScores(
-            Data.BATCH_SIZE,
-            data.scoresBuf, data.advWeightsBuf, data.prosaleOnlyFlagsBuf,
-            data.minScore, data.maxScore,
-            data.minAdvBoost, data.maxAdvBoost,
-            data.slope, data.intercept
-        );
-    }
+//    @Benchmark
+//    public void calcScoresJni(Data data) {
+//        AdvScorerJni.calcScores(
+//            Data.BATCH_SIZE,
+//            data.scoresBuf, data.advWeightsBuf, data.prosaleOnlyFlagsBuf,
+//            data.minScore, data.maxScore,
+//            data.minAdvBoost, data.maxAdvBoost,
+//            data.slope, data.intercept
+//        );
+//    }
 
 //    @Benchmark
 //    public void copyToByteBuffer(Data data) {
